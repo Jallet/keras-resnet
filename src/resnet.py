@@ -156,20 +156,15 @@ def cifar_resnet(blocks, filters, repetations, input_shape = (3, 32, 32)):
     model = Model(input = input, output = dense)
     return model
   
-def cifar_dyresnet(blocks, subsamples, filters, repetations, is_first_network = False, input_shape = (3, 32, 32)):
-    print "iin.............................................."
-    print "blocks: ", blocks
-    print "subsamples: ", subsamples
-    print "repetations: ", repetations
+def cifar_dyresnet(blocks, subsamples, filters, repetations, is_first_network = False, input_shape = (3, 32, 32), phase = "train"):
     block_fun = _basic_block
     if blocks != len(repetations) or blocks != len(filters) or blocks != len(subsamples):
         print "size of blocks, size of repetations, size of filters , size of subsamples should match"
         return None
-    print "input_shape: ", input_shape
+    # print "input_shape: ", input_shape
     input = Input(shape = input_shape)
     data = input
     if is_first_network:
-      print "in first_network......................"
       conv1 = Convolution2D(nb_filter = 16, nb_row = 3, nb_col = 3, border_mode = "same", W_regularizer = l2(l = 0.0001), b_regularizer = l2(l = 0.0001))(input)
       norm1 = BatchNormalization(mode = 0, axis = 1)(conv1)
       data = Activation("relu")(norm1)
@@ -182,11 +177,18 @@ def cifar_dyresnet(blocks, subsamples, filters, repetations, is_first_network = 
             is_first_layer = True
         data = _residual_block(block_fun, nb_filters = filters[i], 
                 repetations = repetations[i], is_first_layer = is_first_layer)(data) 
-    global_pool = AveragePooling2D(pool_size = (8, 8), strides = (8, 8), border_mode = "valid")(data)
-    flatten = Flatten()(global_pool)
-    dense = Dense(output_dim = 10, init = "he_normal", activation = "softmax", W_regularizer = l2(l = 0.0001), b_regularizer = l2(l = 0.0001))(flatten)
-    model = Model(input = input, output = dense)
-    print "shape of global_pool: ", model.layers[len(model.layers) - 1].output_shape
+    if "train" == phase:
+        global_pool = AveragePooling2D(pool_size = (8, 8), strides = (8, 8), border_mode = "valid")(data)
+        flatten = Flatten()(global_pool)
+        dense = Dense(output_dim = 10, init = "he_normal", activation = "softmax", W_regularizer = l2(l = 0.0001), b_regularizer = l2(l = 0.0001))(flatten)
+        output = dense
+    elif "test" == phase:
+        output = data 
+    else:
+        print "Illegal phase"
+        return None
+    model = Model(input = input, output = output)
+    # print "shape of global_pool: ", model.layers[len(model.layers) - 1].output_shape
     return model
 
 def main():

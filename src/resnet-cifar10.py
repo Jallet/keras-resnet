@@ -5,6 +5,7 @@ import resnet
 # from resnet import _basic_block
 import time
 import sys
+import os
 from keras.datasets import cifar10
 from keras.optimizers import SGD
 from keras.utils import np_utils
@@ -102,7 +103,8 @@ def main():
             decay = self.model.optimizer.decay.get_value()
             print "lr: ", lr, " momentum: ", momentum, " decay: ", decay
     
-    datagen = ImageDataGenerator(horizontal_flip = True)
+    datagen = ImageDataGenerator(featurewise_center = True, 
+            horizontal_flip = True)
     # datagen = ImageDataGenerator(featurewise_center = True,
     #         featurewise_std_normalization = True,
     #         rotation_range = 20,
@@ -123,7 +125,21 @@ def main():
     #           validation_data=(X_test, Y_test),
     #           shuffle=True)
     print "type of history: ", type(history)
-    loss = history.history["loss"]
+    loss = np.asarray(history.history["loss"])
+    acc = np.asarray(history.history["acc"])
+    val_loss = np.asarray(history.history["val_loss"])
+    val_acc = np.asarray(history.history["val_acc"])
+    acc_path = "./result/accuracy/ResNet-cifar/"
+    if not os.path.isdir(acc_path):
+        os.makedirs(acc_path)
+    np.savetxt(acc_path + "/ResNet-cifar-acc", acc)
+    np.savetxt(acc_path + "/ResNet-cifar-val-acc", val_acc)
+    loss_path = "./result/loss/ResNet-cifar/"
+    if not os.path.isdir(loss_path):
+        os.makedirs(loss_path)
+    np.savetxt(loss_path + "/ResNet-cifar-loss", loss)
+    np.savetxt(loss_path + "/ResNet-cifar-val-loss", val_loss)
+
     duration = time.time() - start
     print "{} s to fit model".format(duration)
     print history.history

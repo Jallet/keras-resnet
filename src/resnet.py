@@ -20,17 +20,15 @@ from keras.regularizers import l2
 # Helper to build a conv -> BN -> relu block
 def _conv_bn_relu(nb_filter, nb_row, nb_col, subsample=(1, 1)):
     def f(input):
-        conv = Convolution2D(nb_filter=nb_filter, nb_row=nb_row, nb_col=nb_col, subsample=subsample, W_regularizer = l2(l = 0.0001), b_regularizer = l2(l = 0.0001), 
-                             init="he_normal", border_mode="same")(input)
+        conv = Convolution2D(nb_filter=nb_filter, nb_row=nb_row, nb_col=nb_col, subsample=subsample, W_regularizer = l2(l = 0.0001), b_regularizer = l2(l = 0.0001), init="he_normal", border_mode="same")(input)
         norm = BatchNormalization(mode=0, axis=1)(conv)
         return Activation("relu")(norm)
 
     return f
 
-def _conv_bn_relu(nb_filter, nb_row, nb_col, subsample=(1, 1)):
+def _conv_bn(nb_filter, nb_row, nb_col, subsample=(1, 1)):
     def f(input):
-        conv = Convolution2D(nb_filter=nb_filter, nb_row=nb_row, nb_col=nb_col, subsample=subsample, W_regularizer = l2(l = 0.0001), b_regularizer = l2(l = 0.0001), 
-                             init="he_normal", border_mode="same")(input)
+        conv = Convolution2D(nb_filter=nb_filter, nb_row=nb_row, nb_col=nb_col, subsample=subsample, W_regularizer = l2(l = 0.0001), b_regularizer = l2(l = 0.0001), init="he_normal", border_mode="same")(input)
         norm = BatchNormalization(mode=0, axis=1)(conv)
         # return Activation("relu")(norm)
         return norm
@@ -69,7 +67,7 @@ def _bottleneck(nb_filters, init_subsample=(1, 1)):
 def _basic_block(nb_filters, init_subsample=(1, 1)):
     def f(input):
         conv1 = _conv_bn_relu(nb_filters, 3, 3, subsample=init_subsample)(input)
-        residual = _conv_bn_relu(nb_filters, 3, 3)(conv1)
+        residual = _conv_bn(nb_filters, 3, 3)(conv1)
         return _shortcut(input, residual)
 
     return f
@@ -157,6 +155,10 @@ def cifar_resnet(blocks, filters, repetations, input_shape = (3, 32, 32)):
     return model
   
 def cifar_dyresnet(blocks, subsamples, filters, repetations, is_first_network = False, input_shape = (3, 32, 32), phase = "train"):
+    print "phase: ", phase
+    print "subsmaples: ", subsamples
+    print "filters: ", filters
+    print "repetations: ", repetations
     block_fun = _basic_block
     if blocks != len(repetations) or blocks != len(filters) or blocks != len(subsamples):
         print "size of blocks, size of repetations, size of filters , size of subsamples should match"
@@ -175,6 +177,12 @@ def cifar_dyresnet(blocks, subsamples, filters, repetations, is_first_network = 
             is_first_layer = True
         if is_first_network: 
             is_first_layer = True
+        # else:
+        #     is_first_layer = False
+        print "is_first_layer: ", is_first_layer
+        # if i == blocks - 1 and "test" == phase:
+        #   print "test phase"
+        #   repetations[i] = repetations[i] - 1
         data = _residual_block(block_fun, nb_filters = filters[i], 
                 repetations = repetations[i], is_first_layer = is_first_layer)(data) 
     if "train" == phase:

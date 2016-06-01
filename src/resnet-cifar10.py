@@ -15,7 +15,7 @@ from PIL import Image
 
 def random_crop(X_train, pad = 4):
     pad_x = np.pad(X_train, pad_width = ((0, 0), (0, 0), (4, 4), (4, 4)), 
-            mode = "constant", constant_values = 0)
+            mode = "reflect")
     cropped_x = np.zeros(X_train.shape)
     random_col_index = np.random.randint(0, 2 * pad, size = X_train.shape[0]) 
     random_row_index = np.random.randint(0, 2 * pad, size = X_train.shape[0]) 
@@ -103,7 +103,9 @@ def main():
             decay = self.model.optimizer.decay.get_value()
             print "lr: ", lr, " momentum: ", momentum, " decay: ", decay
     
-    datagen = ImageDataGenerator(featurewise_center = True, 
+    datagen = ImageDataGenerator(featurewise_center = True,
+            horizontal_flip = True)
+    test_datagen = ImageDataGenerator(featurewise_center = True,
             horizontal_flip = True)
     # datagen = ImageDataGenerator(featurewise_center = True,
     #         featurewise_std_normalization = True,
@@ -113,10 +115,12 @@ def main():
     #         horizontal_flip = True)
     
     datagen.fit(X_train)
+    test_datagen.fit(X_test)
     history = cifar_model.fit_generator(datagen.flow(X_train, Y_train ,batch_size = 250),
             samples_per_epoch = X_train.shape[0], nb_epoch = nb_epoch,
             callbacks = [LearningRateScheduler(lr_schedule)],  
-            validation_data=(X_test, Y_test))
+            validation_data=test_datagen.flow(X_test, Y_test, batch_size = 100),
+            nb_val_samples = 10000)
     # sys.exit()
     # history = cifar_model.fit(X_train, Y_train,
     #           batch_size=batch_size,

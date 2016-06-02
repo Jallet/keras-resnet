@@ -59,10 +59,10 @@ def main():
         output_path_prefix = args.output_path
         loss_path_prefix = "./result/loss/DyResNet-cifar/"
         loss_path = loss_path_prefix + "DyResNet-cifar-loss"
-        val_loss_path = val_loss_path_prefix + "DyResNet-cifar-val-loss"
+        val_loss_path = loss_path_prefix + "DyResNet-cifar-val-loss"
         acc_path_prefix = "./result/accuracy/DyResNet-cifar/"
         acc_path = acc_path_prefix + "DyResNet-cifar-acc"
-        val_acc_path = val_acc_path_prefix + "DyResNet-cifar-val-acc"
+        val_acc_path = acc_path_prefix + "DyResNet-cifar-val-acc"
         total_loss = []
         total_acc = []
         total_val_loss = []
@@ -217,6 +217,11 @@ def main():
                     metrics=['accuracy'])
             
             if "train" == mode:
+                # copy weight from previous subnetwork
+                if r != 0 or j != 0:
+                    for i in range(len(weights)):
+                        cifar_dymodel.layers[i].set_weights(weights[i])
+
                 history = cifar_dymodel.fit(X_train, Y_train,
                           batch_size=batch_size,
                           sample_weight = sample_weight, 
@@ -233,6 +238,16 @@ def main():
                 total_val_loss = np.hstack((total_val_loss, val_loss))
                 total_val_acc = np.hstack((total_val_acc, val_acc))
 
+                np.savetxt("alpha", alpha)
+                np.savetxt(loss_path, total_loss)
+                np.savetxt(val_loss_path, total_val_loss)
+                np.savetxt(acc_path, total_acc)
+                np.savetxt(val_acc_path, total_val_acc)
+                
+                # save weight for the next subnetwork
+                weights = []
+                for i in range(output_layer, len(cifar_dymodel.layers) - 3):
+                    weights.append(cifar_dymodel.layers[i].get_weights())
                 # print "weight"
                 # print cifar_pred_dymodel.layers[1].get_weights()
                 for i in range(len(cifar_pred_dymodel.layers)):
@@ -256,6 +271,8 @@ def main():
                 print "sahpe of sample_weight", sample_weight.shape
                 sample_weight = sample_weight / float(sample_weight.sum())
                 sample_weight = sample_weight * train_sample_num
+
+                sample_weight = np.ones(train_sample_num)
                     
                 # get and save the output of the subnetwork
                 X_train = cifar_pred_dymodel.predict(X_train, batch_size = 250)
@@ -295,12 +312,6 @@ def main():
                 print "Illegal Running mode."
                 sys.exit()
     print "alpha: ", alpha
-    if "train" == mode:
-        np.savetxt("alpha", alpha)
-        np.savetxt(loss_path, total_loss)
-        np.savetxt(val_loss_path, total_val_loss)
-        np.savetxt(acc_path, total_acc)
-        np.savetxt(val_acc_path, total_val_acc)
     sys.exit()
     
 if "__main__" == __name__:

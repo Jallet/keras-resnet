@@ -2,6 +2,7 @@
 import numpy as np
 np.random.seed(100)
 import theano
+import subprocess
 import math
 from resnet import *
 import resnet
@@ -65,6 +66,8 @@ def main():
     start = time.time()
     print "Loading data"
     (X_train, y_train), (X_test, y_test) = cifar10.load_data()
+    y_train = np.squeeze(y_train)
+    y_test = np.squeeze(y_test)
     print('X_train shape:', X_train.shape)
     print(X_train.shape[0], 'train samples')
     print(X_test.shape[0], 'test samples')
@@ -113,19 +116,71 @@ def main():
             sgd = SGD(lr=0.1, decay=0, momentum=0.9, nesterov=False)
             print "r, ", r, "j, ", j
             print "X_train.shape: ", X_train.shape
-            if j == 0:
-                subsamples = [True]
-            else:
-                subsamples = [False]
+            reap = [2]
+            blocks = 1
             is_first_network = False
-            if r == 0 and j == 0:
-                is_first_network = True
+            if j == 0:
+                if r == 0:
+                    reap = [1]
+                    blocks = 1
+                    f = [filters[r]]
+                    subsamples = [False]
+                    test_reap = []
+                    test_blocks = 0
+                    test_f = []
+                    test_subsamples = []
+                    is_first_network = True
+                else:
+                    reap = [1, 1]
+                    blocks = 2
+                    f = [filters[r - 1], filters[r]]
+                    subsamples = [False, True]
+                    test_reap = [1]
+                    test_blocks = 1
+                    test_f = [filters[r - 1]]
+                    test_subsamples = [False]
+
+            elif j == 1:
+                if r != 0:
+                    reap = [2]
+                    blocks = 1
+                    f = [filters[r]]
+                    subsamples = [True]
+                    test_reap = [1]
+                    test_blocks = 1
+                    test_f = [filters[r]]
+                    test_subsamples = [True]
+                else:
+                    reap = [2]
+                    blocks = 1
+                    f = [filters[r]]
+                    subsamples = [False]
+                    test_reap = [1]
+                    test_blocks = 1
+                    test_f = [filters[r]]
+                    test_subsamples = [False]
+            else:
+                reap = [2]
+                blocks = 1
+                f = [filters[r]]
+                subsamples = [False]
+                test_reap = [1]
+                test_blocks = 1
+                test_f = [filters[r]]
+                test_subsamples = [False]
+            # if j == 0:
+            #     subsamples = [True]
+            # else:
+            #     subsamples = [False]
+            # is_first_network = False
+            # if r == 0 and j == 0:
+            #     is_first_network = True
             input = Input(shape = input_shape)
             cifar_dymodel = resnet.cifar_dyresnet(blocks, subsamples, 
                     f, reap, input_shape  = input_shape, 
                     is_first_network = is_first_network, phase = "train")
-            cifar_pred_dymodel = resnet.cifar_dyresnet(blocks, subsamples, 
-                    f, reap, input_shape  = input_shape, 
+            cifar_pred_dymodel = resnet.cifar_dyresnet(test_blocks, test_subsamples, 
+                    test_f, test_reap, input_shape  = input_shape, 
                     is_first_network = is_first_network, phase = "test")
             # print cifar_dymodel
             plot(cifar_dymodel, 
@@ -134,7 +189,10 @@ def main():
             plot(cifar_pred_dymodel, 
                     to_file = "./images/dyresnet-cifar-pred{}-{}.png".format(r, j), 
                     show_shapes = True)
-            input_shape = cifar_dymodel.layers[len(cifar_dymodel.layers) - 4].output_shape
+            output_layer = len(cifar_dymodel.layers) - 11
+            if j == 0 and r != 0:
+                output_layer = len(cifar_dymodel.layers) - 12
+            input_shape = cifar_dymodel.layers[output_layer].output_shape
             # print "input_shape: ", input_shape
             input_shape = list((input_shape[1:]))
             # print "input_shape: ", input_shape
@@ -163,22 +221,22 @@ def main():
                 error = 0
                 # Update sample_weight
                 start = time.time()
-                for i in range(train_sample_num):
-                    score = cifar_dymodel.evaluate(X_train[i : i + 1], Y_train[i : i + 1], verbose = 0)
-                    train_acc[i] = score[1]
+                # for i in range(train_sample_num):
+                #     score = cifar_dymodel.evaluate(X_train[i : i + 1], Y_train[i : i + 1], verbose = 0)
+                #     train_acc[i] = score[1]
+                prob = cifar_dymodel.predict(X_train, batch_size = 250, verbose = 1)
+                pred_labels = np.argmax(prob, axis = 1)
+                train_acc = pred_labels == y_train
                 duration = time.time() - start
                 print "{} s to evaluate".format(duration)
-                error_rate = (train_sample_num - train_acc.sum()) / float(train_sample_num)
-                print "error_rate: ", error_rate
-                alpha[net_num - 1] = 0.5 * np.log((1 - error_rate) / error_rate) 
-                increse_rate = np.exp(alpha[net_num - 1])
-                decrease_rate = np.exp(-1 * alpha[net_num - 1])
-                for i in range(train_sample_num):
-                    if train_acc[i] == 1:
-                        sample_weight[i] = sample_weight[i] * decrease_rate
-                    else:
-                        sample_weight[i] = sample_weight[i] * increse_rate
-                # sample_weight = sample_weight / sample_weight.sum()
+                train_error = 1 - train_acc
+                sample_weight = sample_weight / float(train_sample_num)
+                error_rate = (train_error *  sample_weight).sum() / sample_weight.sum()
+                alpha[net_num - 1] = np.log(nb_classes - 1) + np.log((1 - error_rate) / error_rate)
+                sample_weight = sample_weight * np.exp(alpha[net_num - 1] * train_error)
+                print "sahpe of sample_weight", sample_weight.shape
+                sample_weight = sample_weight / float(sample_weight.sum())
+                sample_weight = sample_weight * train_sample_num
                     
                 # get and save the output of the subnetwork
                 X_train = cifar_pred_dymodel.predict(X_train, batch_size = 250)
@@ -193,6 +251,8 @@ def main():
 
                 # save the weight of the subnetwork
                 weight_path = gen_weight_path(weight_path_prefix, r, j)
+                child = subprocess.Popen("rm -r " + weight_path, shell = True)
+                child.wait()
                 if not os.path.isdir(weight_path):
                     os.makedirs(weight_path)
                 cifar_dymodel.save_weights(weight_path + "/weight")

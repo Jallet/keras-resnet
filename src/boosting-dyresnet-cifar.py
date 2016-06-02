@@ -57,6 +57,16 @@ def main():
     weight_path_prefix = args.weight_path
     if "train" == mode:
         output_path_prefix = args.output_path
+        loss_path_prefix = "./result/loss/DyResNet-cifar/"
+        loss_path = loss_path_prefix + "DyResNet-cifar-loss"
+        val_loss_path = val_loss_path_prefix + "DyResNet-cifar-val-loss"
+        acc_path_prefix = "./result/accuracy/DyResNet-cifar/"
+        acc_path = acc_path_prefix + "DyResNet-cifar-acc"
+        val_acc_path = val_acc_path_prefix + "DyResNet-cifar-val-acc"
+        total_loss = []
+        total_acc = []
+        total_val_loss = []
+        total_val_acc = []
 
     batch_size = 250
     nb_epoch = 40
@@ -214,6 +224,15 @@ def main():
                           callbacks = [LearningRateScheduler(lr_schedule)],
                           validation_data=(X_test, Y_test),
                           shuffle=True)
+                loss = history.history["loss"]
+                val_loss = history.history["val_loss"]
+                acc = history.history["acc"]
+                val_acc = history.history["val_acc"]
+                total_loss = np.hstack((total_loss, loss))
+                total_acc = np.hstack((total_acc, acc))
+                total_val_loss = np.hstack((total_val_loss, val_loss))
+                total_val_acc = np.hstack((total_val_acc, val_acc))
+
                 # print "weight"
                 # print cifar_pred_dymodel.layers[1].get_weights()
                 for i in range(len(cifar_pred_dymodel.layers)):
@@ -276,7 +295,12 @@ def main():
                 print "Illegal Running mode."
                 sys.exit()
     print "alpha: ", alpha
-    np.savetxt("alpha", alpha)
+    if "train" == mode:
+        np.savetxt("alpha", alpha)
+        np.savetxt(loss_path, total_loss)
+        np.savetxt(val_loss_path, total_val_loss)
+        np.savetxt(acc_path, total_acc)
+        np.savetxt(val_acc_path, total_val_acc)
     sys.exit()
     
 if "__main__" == __name__:

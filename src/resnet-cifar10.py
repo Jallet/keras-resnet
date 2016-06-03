@@ -41,7 +41,8 @@ def main():
     print(X_train.shape[0], 'train samples')
     print(X_test.shape[0], 'test samples')
 
-    cropped_x = random_crop(X_train, pad = 4)
+    # cropped_x = random_crop(X_train, pad = 4)
+    # X_train = cropped_x
     # im_array = X_train[5, :, :, :]
     # cim_array = cropped_x[5, :, :, :]
     # im_array = np.transpose(im_array, (1, 2, 0))
@@ -104,8 +105,12 @@ def main():
             print "lr: ", lr, " momentum: ", momentum, " decay: ", decay
     
     datagen = ImageDataGenerator(featurewise_center = True,
+            width_shift_range = 0.125, 
+            height_shift_range = 0.125, 
             horizontal_flip = True)
     test_datagen = ImageDataGenerator(featurewise_center = True,
+            width_shift_range = 0.125, 
+            height_shift_range = 0.125, 
             horizontal_flip = True)
     # datagen = ImageDataGenerator(featurewise_center = True,
     #         featurewise_std_normalization = True,

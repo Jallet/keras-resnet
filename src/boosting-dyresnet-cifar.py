@@ -273,6 +273,8 @@ def main():
                 sample_weight = sample_weight * train_sample_num
 
                 sample_weight = np.ones(train_sample_num)
+                # print "sample_weight:"
+                # print sample_weight[0 : 100]
                     
                 # get and save the output of the subnetwork
                 X_train = cifar_pred_dymodel.predict(X_train, batch_size = 250)

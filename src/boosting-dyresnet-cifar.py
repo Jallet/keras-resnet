@@ -16,6 +16,7 @@ from keras.optimizers import SGD
 from keras.utils import np_utils
 from keras.layers import Input
 from keras.callbacks import RemoteMonitor, Callback, LearningRateScheduler
+from keras.preprocessing.image import ImageDataGenerator
 import argparse
 
 
@@ -68,7 +69,8 @@ def main():
         total_val_loss = []
         total_val_acc = []
 
-    batch_size = 250
+    train_batch_size = 250
+    test_batch_size = 100
     nb_epoch = 40
     nb_classes = 10
     base_lr = 0.1
@@ -220,15 +222,37 @@ def main():
                 # copy weight from previous subnetwork
                 if r != 0 or j != 0:
                     for i in range(len(weights)):
+                        print "i: ", i
+                        print cifar_dymodel.layers[i].get_config()
                         cifar_dymodel.layers[i].set_weights(weights[i])
 
-                history = cifar_dymodel.fit(X_train, Y_train,
-                          batch_size=batch_size,
-                          sample_weight = sample_weight, 
-                          nb_epoch=nb_epoch,
-                          callbacks = [LearningRateScheduler(lr_schedule)],
-                          validation_data=(X_test, Y_test),
-                          shuffle=True)
+                if j == 0 and r == 0:
+                    datagen = ImageDataGenerator(featurewise_center = True,
+                            width_shift_range = 0.125, 
+                            height_shift_range = 0.125, 
+                            horizontal_flip = True)
+                    test_datagen = ImageDataGenerator(featurewise_center = True,
+                            width_shift_range = 0.125, 
+                        height_shift_range = 0.125, 
+                        horizontal_flip = True)
+
+                    datagen.fit(X_train)
+                    test_datagen.fit(X_test)
+
+                    history = cifar_dymodel.fit_generator(datagen.flow(X_train, Y_train, batch_size = train_batch_size),
+                            samples_per_epoch = train_sample_num, 
+                            nb_epoch = nb_epoch,
+                            callbacks = [LearningRateScheduler(lr_schedule)],
+                            validation_data=test_datagen.flow(X_test, Y_test, batch_size = test_batch_size),
+                            nb_val_samples = test_sample_num)
+                else:
+                    history = cifar_dymodel.fit(X_train, Y_train,
+                              batch_size=train_batch_size,
+                              sample_weight = sample_weight, 
+                              nb_epoch=nb_epoch,
+                              callbacks = [LearningRateScheduler(lr_schedule)],
+                              validation_data=(X_test, Y_test),
+                              shuffle=True)
                 loss = history.history["loss"]
                 val_loss = history.history["val_loss"]
                 acc = history.history["acc"]
@@ -245,9 +269,14 @@ def main():
                 np.savetxt(val_acc_path, total_val_acc)
                 
                 # save weight for the next subnetwork
+                print "saving weight"
                 weights = []
                 for i in range(output_layer, len(cifar_dymodel.layers) - 3):
+                    print "i: ", i
+                    print cifar_dymodel.layers[i].get_config()
                     weights.append(cifar_dymodel.layers[i].get_weights())
+                print "length of weights: ", len(weights)
+                continue
                 # print "weight"
                 # print cifar_pred_dymodel.layers[1].get_weights()
                 for i in range(len(cifar_pred_dymodel.layers)):
@@ -258,7 +287,7 @@ def main():
                 # for i in range(train_sample_num):
                 #     score = cifar_dymodel.evaluate(X_train[i : i + 1], Y_train[i : i + 1], verbose = 0)
                 #     train_acc[i] = score[1]
-                prob = cifar_dymodel.predict(X_train, batch_size = 250, verbose = 1)
+                prob = cifar_dymodel.predict(X_train, batch_size = train_batch_size, verbose = 1)
                 pred_labels = np.argmax(prob, axis = 1)
                 train_acc = pred_labels == y_train
                 duration = time.time() - start
@@ -277,8 +306,10 @@ def main():
                 # print sample_weight[0 : 100]
                     
                 # get and save the output of the subnetwork
-                X_train = cifar_pred_dymodel.predict(X_train, batch_size = 250)
-                X_test = cifar_pred_dymodel.predict(X_test, batch_size = 100)
+                X_train = cifar_pred_dymodel.predict(X_train, batch_size = train_batch_size)
+                X_test = cifar_pred_dymodel.predict(X_test, batch_size = test_batch_size)
+                print "shape of X_train: ", X_train.shape
+                print "shape of X_test: ", X_test.shape
 
                 # print "shape of X_train: ", X_train.shape
                 output_path = gen_output_path(output_path_prefix, r, j)
@@ -303,13 +334,13 @@ def main():
                 cifar_dymodel.load_weights(weight_path + "/weight")
                 for i in range(len(cifar_pred_dymodel.layers)):
                     cifar_pred_dymodel.layers[i].set_weights(cifar_dymodel.layers[i].get_weights())
-                pred = cifar_dymodel.predict(X_test, batch_size = 200) 
+                pred = cifar_dymodel.predict(X_test, batch_size = test_batch_size) 
                 total_pred = total_pred + alpha[net_num - 1] * pred
                 pred_labels = np.argmax(total_pred, axis = 1)
                 labels = np.argmax(Y_test, axis = 1)
                 total_acc[net_num - 1]  = (labels == pred_labels).sum() / float(X_test.shape[0])
                 print "total_acc = ", total_acc
-                X_test = cifar_pred_dymodel.predict(X_test, batch_size = 100)
+                X_test = cifar_pred_dymodel.predict(X_test, batch_size = test_batch_size)
             else:
                 print "Illegal Running mode."
                 sys.exit()

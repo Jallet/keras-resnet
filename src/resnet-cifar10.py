@@ -104,11 +104,11 @@ def main():
             decay = self.model.optimizer.decay.get_value()
             print "lr: ", lr, " momentum: ", momentum, " decay: ", decay
     
-    datagen = ImageDataGenerator(featurewise_center = True,
+    datagen = ImageDataGenerator(featurewise_std_normalization = True,
             width_shift_range = 0.125, 
             height_shift_range = 0.125, 
             horizontal_flip = True)
-    test_datagen = ImageDataGenerator(featurewise_center = True,
+    test_datagen = ImageDataGenerator(featurewise_std_normalization = True,
             width_shift_range = 0.125, 
             height_shift_range = 0.125, 
             horizontal_flip = True)

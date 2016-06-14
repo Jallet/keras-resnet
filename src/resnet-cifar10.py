@@ -12,6 +12,8 @@ from keras.utils import np_utils
 from keras.callbacks import RemoteMonitor, Callback, LearningRateScheduler
 from keras.preprocessing.image import ImageDataGenerator
 from PIL import Image
+import json
+from keras.models import model_from_json
 
 def random_crop(X_train, pad = 4):
     pad_x = np.pad(X_train, pad_width = ((0, 0), (0, 0), (4, 4), (4, 4)), 
@@ -71,7 +73,19 @@ def main():
     start = time.time()
     print "Making model"
     cifar_model = resnet.cifar_resnet(3, [16, 32, 64], [3, 3, 3])
+    # json_string = cifar_model.to_json()
+    # data = json.loads(json_string)
+    # indented_str = json.dumps(data, indent = 1)
+    # with open("model.json", "w") as f:
+    #     f.write(indented_str)
+    # f.close()
+    # sys.exit()
+    with open("models/model.json", "r") as f:
+        data = json.load(f)
+    json_string = json.dumps(data)
+    cifar_model = model_from_json(json_string)
     plot(cifar_model, to_file = "./images/resnet-cifar.png", show_shapes = True)
+    # sys.exit()
     duration = time.time() - start
     print "{} s to make model".format(duration)
     print "Compiling model"

@@ -220,11 +220,11 @@ def main():
             
             if "train" == mode:
                 # copy weight from previous subnetwork
-                if r != 0 or j != 0:
-                    for i in range(len(weights)):
-                        print "i: ", i
-                        print cifar_dymodel.layers[i].get_config()
-                        cifar_dymodel.layers[i].set_weights(weights[i])
+                # if r != 0 or j != 0:
+                #     for i in range(len(weights)):
+                #         print "i: ", i
+                #         print cifar_dymodel.layers[i].get_config()
+                #         cifar_dymodel.layers[i].set_weights(weights[i])
 
                 if j == 0 and r == 0:
                     datagen = ImageDataGenerator(featurewise_center = True,
@@ -276,7 +276,6 @@ def main():
                     print cifar_dymodel.layers[i].get_config()
                     weights.append(cifar_dymodel.layers[i].get_weights())
                 print "length of weights: ", len(weights)
-                continue
                 # print "weight"
                 # print cifar_pred_dymodel.layers[1].get_weights()
                 for i in range(len(cifar_pred_dymodel.layers)):
